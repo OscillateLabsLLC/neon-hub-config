@@ -1,0 +1,29 @@
+# Build the frontend
+version: "3"
+
+tasks:
+  build-fe:
+    dir: frontend/neon-hub-config
+    desc: Build the frontend
+    cmds:
+      - pnpm install
+      - pnpm run build:py
+  build-fe-docker:
+    desc: Build the frontend docker image for testing purposes
+    cmds:
+      - docker build -t neon-hub-config-frontend -f Dockerfile.frontend .
+  fe-dev-server:
+    dir: frontend/neon-hub-config
+    desc: Start the frontend development server
+    cmds:
+      - pnpm install
+      - pnpm run dev
+  py-run:
+    desc: Run the python server
+    cmds:
+      - poetry run python neon_hub_config/main.py
+  build-docker:
+    desc: Build the production docker image
+    cmds:
+      - task build-fe
+      - docker build -t neon-hub-config .
