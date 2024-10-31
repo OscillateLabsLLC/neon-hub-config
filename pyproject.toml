@@ -13,6 +13,8 @@ ovos-bus-client = "^0.1.4"
 ovos-workshop = "^1.0.2"
 ovos-utils = "^0.3.5"
 uvicorn = "^0.32.0"
+json-database = "^0.7.0"
+ruamel-yaml = "^0.18.6"
 
 
 [tool.poetry.group.dev.dependencies]

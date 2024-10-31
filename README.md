@@ -10,14 +10,15 @@
 a) Develop a user interface for Hub management
 b) Implement views for:
 
-- [ ] Managing Hub configuration (API keys, Hana configuration)
+- [x] Managing Hub configuration (API keys, Hana configuration)
   - [Claude-generated samples](https://claude.ai/chat/41a0de8d-01ee-4c62-9f88-214afadb71d2)
-  - [ ] All Hana configuration items, obscuring secrets, with a refresh button to pull any updates from file.
-    - Consider an option to show last refresh time
-  - [ ] Do we make the RMQ configuration editable? Or leave that as an advanced user topic?
-  - [ ] All Iris configs
-  - [ ] Websocket
-  - [ ] API keys for external services
+  - [x] All Hana configuration items, obscuring secrets, with a refresh button to pull any updates from file.
+    - [x] Consider an option to show last refresh time
+  - [x] Do we make the RMQ configuration editable? Or leave that as an advanced user topic?
+    - We'll leave RMQ as an advanced user topic
+  - [x] All Iris configs
+  - [x] Websocket
+  - [x] API keys for external services
   - [ ] OPTIONAL: JSON editing for skills
     - Anything more would require settingsmeta.yml to be in all Neon skills
   - [ ] OPTIONAL: Disabling skills
@@ -31,6 +32,10 @@ b) Implement views for:
 
 c) Test and validate all UI functions
 d) Create user documentation for the management system
+e) (Not in SOW but important) Basic auth to get the page, so we don't just have an open page on the home network
+
+- [x] Done in the UI
+- [ ] Done in the backend
 
 ## Developing the UI
 

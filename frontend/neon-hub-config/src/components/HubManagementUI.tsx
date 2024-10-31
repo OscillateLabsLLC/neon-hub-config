@@ -1,5 +1,35 @@
 import React, { useState } from "react";
 import { RefreshCw, ExternalLink } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../components/ui/tooltip";
+import SecretField from "./SecretField";
+
+interface TooltipInterface {
+  [key: string]: string;
+}
+
+const TOOLTIPS: TooltipInterface = {
+  LOG_LEVEL: "The level of logging to be used by the backend. Supports Python logging levels.",
+  system_unit: "The system of measurement to be used by the backend. Options: metric, imperial.",
+  time_format: "The format for displaying time. Options: half (12-hour format), full (24-hour format).",
+  timezone: "The timezone to be used by the backend. Must be a valid timezone string.",
+  default_lang: "The default language to be used by the IRIS web interface.",
+  languages: "The languages supported by the IRIS web interface.",
+  webui_chatbot_label: "The title in the IRIS web interface.",
+  webui_mic_label: "The label for the microphone button in the IRIS web interface.",
+  webui_input_placeholder: "The placeholder text for the chat input in the IRIS web interface.",
+  webui_ws_url: "The WebSocket URL for the IRIS web interface, e.g. wss://<your-hub-ip>/ws. Must be wss for IRIS websat.",
+  fastapi_title: "The title of the HANA instance.",
+  fastapi_summary: "The summary text of the HANA instance.",
+  enable_email: "Whether to enable email functionality in the backend.",
+  node_username: "The username for connecting a Neon Node to your Neon Hub.",
+  node_password: "The password for connecting a Neon Node to your Neon Hub.",
+  port: "The port to be used by the Message Queue.",
+};
 
 type ConfigSection = {
   [key: string]: string | number | string[] | object;
@@ -26,11 +56,31 @@ interface HubManagementUIProps {
   isDark: boolean;
 }
 
+const snakeCaseToTitle = (str: string) => {
+  return str
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
 const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
   const [config, setConfig] = useState<Config>({
-    hana: { fastapi_title: "My HANA API Host", fastapi_summary: "Personal HTTP API to access my DIANA backend.", enable_email: "false", node_username: "neon_node", node_password: "sh574h57ytrgierj4ht5iyrt" },
+    hana: {
+      fastapi_title: "My HANA API Host",
+      fastapi_summary: "Personal HTTP API to access my DIANA backend.",
+      enable_email: "false",
+      node_username: "neon_node",
+      node_password: "sh574h57ytrgierj4ht5iyrt"
+    },
     MQ: { port: 5672, server: "neon-rabbitmq" },
-    iris: { default_lang: "en-us", languages: ["en-us"], webui_chatbot_label: "Neon AI", webui_mic_label: "Speak with Neon", webui_input_placeholder: "Speak with Neon", webui_ws_url: "wss://iris-websat.neon-hub.local/ws" },
+    iris: {
+      default_lang: "en-us",
+      languages: ["en-us"],
+      webui_chatbot_label: "Neon AI",
+      webui_mic_label: "Speak with Neon",
+      webui_input_placeholder: "Speak with Neon",
+      webui_ws_url: "wss://iris-websat.neon-hub.local/ws"
+    },
     websocket: { host: "neon-messagebus" },
     logging: { LOG_LEVEL: "INFO" },
     units: { system_unit: "imperial", time_format: "half" },
@@ -45,159 +95,125 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
         enclosure: ["ovos-PHAL-plugin-homeassistant"],
       },
     },
-    api_keys: { alpha_vantage: "", open_weather_map: "", wolfram_alpha: "" },
+    api_keys: {
+      alpha_vantage: "",
+      open_weather_map: "",
+      wolfram_alpha: ""
+    },
   });
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(new Date());
 
-
-  const handleConfigChange = (section: keyof Config, key: string, value: string | number | string[] | object) => {
-    setConfig(prev => ({
+  const handleConfigChange = (
+    section: keyof Config,
+    key: string,
+    value: string | number | string[] | object
+  ) => {
+    setConfig((prev) => ({
       ...prev,
       [section]: { ...prev[section], [key]: value },
     }));
+  };
+
+  const isSecret = (section: keyof Config, key: string): boolean => {
+    return (
+      key.includes("password") ||
+      key.includes("secret") ||
+      key.includes("api_key") ||
+      section === "api_keys"
+    );
+  };
+
+  const renderInputField = (
+    section: keyof Config,
+    key: string,
+    value: unknown
+  ) => {
+    const baseInputClass = `w-full p-2 rounded ${
+      isDark ? "bg-gray-700" : "bg-white"
+    } ${isDark ? "text-white" : "text-gray-900"} border ${
+      isDark ? "border-orange-400" : "border-orange-600"
+    }`;
+
+    if (isSecret(section, key)) {
+      return (
+        <SecretField
+          value={value as string}
+          onChange={(e) => handleConfigChange(section, key, e.target.value)}
+          className={baseInputClass}
+          isDark={isDark}
+        />
+      );
+    }
+
+    if (key === "LOG_LEVEL") {
+      return (
+        <select
+          value={value as string}
+          onChange={(e) => handleConfigChange(section, key, e.target.value)}
+          className={baseInputClass}
+        >
+          {["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"].map((level) => (
+            <option key={level} value={level}>
+              {level}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (key === "system_unit") {
+      return (
+        <select
+          value={value as string}
+          onChange={(e) => handleConfigChange(section, key, e.target.value)}
+          className={baseInputClass}
+        >
+          <option value="metric">Metric</option>
+          <option value="imperial">Imperial</option>
+        </select>
+      );
+    }
+
+    if (key === "time_format") {
+      return (
+        <select
+          value={value as string}
+          onChange={(e) => handleConfigChange(section, key, e.target.value)}
+          className={baseInputClass}
+        >
+          <option value="half">12-hour</option>
+          <option value="full">24-hour</option>
+        </select>
+      );
+    }
+
+    return (
+      <input
+        type={typeof value === "number" ? "number" : "text"}
+        value={value as string | number}
+        onChange={(e) => handleConfigChange(section, key, e.target.value)}
+        className={baseInputClass}
+      />
+    );
   };
 
   const fetchConfig = () => {
     // TODO: Implement fetchConfig function from API
     setLastRefresh(new Date());
   };
+
   const bgColor = isDark ? "bg-gray-900" : "bg-white";
   const textColor = isDark ? "text-white" : "text-gray-900";
   const borderColor = isDark ? "border-orange-400" : "border-orange-600";
   const cardBgColor = isDark ? "bg-gray-800" : "bg-orange-100";
-  const inputBgColor = isDark ? "bg-gray-700" : "bg-white";
-  const inputBorderColor = isDark ? "border-orange-400" : "border-orange-600";
   const linkColor = isDark ? "text-orange-400" : "text-orange-600";
 
-  const renderConfigSection = (section: keyof Config, data: ConfigSection, title: string) => (
-    <div className={`mb-4 border ${borderColor} rounded-lg overflow-hidden`}>
-      <div className={`${cardBgColor} p-4`}>
-        <h2 className={`text-xl font-semibold ${isDark?'text-orange-200':'text-orange-800'}`}>{title}</h2>
-      </div>
-      <div className={`${bgColor} p-4`}>
-        {Object.entries(data).map(([key, value]) => (
-          <div key={key} className="mb-4">
-            <label className="block text-sm font-medium mb-1">{key}</label>
-            {key === 'LOG_LEVEL' ? (
-              <>
-                <select 
-                  value={value as string} 
-                  onChange={(e) => handleConfigChange(section, key, e.target.value)} 
-                  className={`w-full p-2 rounded ${inputBgColor} ${textColor} border ${inputBorderColor}`}
-                >
-                  {['DEBUG','INFO','WARNING','ERROR','CRITICAL'].map(level => 
-                    <option key={level} value={level}>{level}</option>
-                  )}
-                </select>
-                <a href="https://docs.python.org/3/library/logging.html#logging-levels" target="_blank" rel="noopener noreferrer" className={`text-sm ${linkColor} hover:underline flex items-center mt-1`}>
-                  View LOG_LEVEL documentation <ExternalLink className="ml-1 h-3 w-3"/>
-                </a>
-              </>
-            ) : key === 'system_unit' ? (
-              <>
-                <select 
-                  value={value as string} 
-                  onChange={(e) => handleConfigChange(section, key, e.target.value)} 
-                  className={`w-full p-2 rounded ${inputBgColor} ${textColor} border ${inputBorderColor}`}
-                >
-                  <option value="metric">Metric</option>
-                  <option value="imperial">Imperial</option>
-                </select>
-                <span className="text-sm mt-1 block">
-                  Example: {(value as string) === 'metric' ? 'metric (uses kilometers, Celsius)' : 'imperial (uses miles, Fahrenheit)'}
-                </span>
-              </>
-            ) : key === 'time_format' ? (
-              <>
-                <select 
-                  value={value as string} 
-                  onChange={(e) => handleConfigChange(section, key, e.target.value)} 
-                  className={`w-full p-2 rounded ${inputBgColor} ${textColor} border ${inputBorderColor}`}
-                >
-                  <option value="half">12-hour</option>
-                  <option value="full">24-hour</option>
-                </select>
-                <span className="text-sm mt-1 block">
-                  Example: {(value as string) === 'half' ? 'half (12-hour format, e.g., 3:00 PM)' : 'full (24-hour format, e.g., 15:00)'}
-                </span>
-              </>
-            ) : key === 'timezone' ? (
-              <>
-                <input 
-                  type="text" 
-                  value={value as string} 
-                  onChange={(e) => handleConfigChange(section, key, e.target.value)} 
-                  className={`w-full p-2 rounded ${inputBgColor} ${textColor} border ${inputBorderColor}`}
-                />
-                <a href="https://en.wikipedia.org/wiki/List_of_tz_database_time_zones" target="_blank" rel="noopener noreferrer" className={`text-sm ${linkColor} hover:underline flex items-center mt-1`}>
-                  View list of valid timezones <ExternalLink className="ml-1 h-3 w-3"/>
-                </a>
-              </>
-            ) : (
-              <input 
-                type={typeof value === 'number' ? 'number' : 'text'} 
-                value={value as string | number} 
-                onChange={(e) => handleConfigChange(section, key, e.target.value)} 
-                className={`w-full p-2 rounded ${inputBgColor} ${textColor} border ${inputBorderColor}`}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-  // const renderSkillsSection = () => (
-  //   <div className={`mb-4 border ${borderColor} rounded-lg overflow-hidden`}>
-  //     <div className={`${cardBgColor} p-4`}>
-  //       <h2
-  //         className={`text-xl font-semibold ${
-  //           isDark ? "text-orange-200" : "text-orange-800"
-  //         }`}
-  //       >
-  //         Skills and Dependencies
-  //       </h2>
-  //     </div>
-  //     <div className={`${bgColor} p-4`}>
-  //       <div className="mb-4">
-  //         <label className="block text-sm font-medium mb-1">
-  //           Default Skills
-  //         </label>
-  //         <input
-  //           value={config.skills.default_skills.join(", ")}
-  //           onChange={(e) =>
-  //             handleConfigChange(
-  //               "skills",
-  //               "default_skills",
-  //               e.target.value.split(", ").filter(Boolean)
-  //             )
-  //           }
-  //           className={`w-full p-2 rounded ${inputBgColor} ${textColor} border ${inputBorderColor}`}
-  //         />
-  //       </div>
-  //       {Object.entries(config.skills.extra_dependencies).map(
-  //         ([key, value]) => (
-  //           <div key={key} className="mb-4">
-  //             <label className="block text-sm font-medium mb-1">
-  //               {key} Dependencies
-  //             </label>
-  //             <input
-  //               value={value.join(", ")}
-  //               onChange={(e) => {
-  //                 const newDeps = {
-  //                   ...config.skills.extra_dependencies,
-  //                   [key]: e.target.value.split(", ").filter(Boolean),
-  //                 };
-  //                 handleConfigChange("skills", "extra_dependencies", newDeps);
-  //               }}
-  //               className={`w-full p-2 rounded ${inputBgColor} ${textColor} border ${inputBorderColor}`}
-  //             />
-  //           </div>
-  //         )
-  //       )}
-  //     </div>
-  //   </div>
-  // );
-  const renderApiKeysSection = () => (
+  const renderConfigSection = (
+    section: keyof Config,
+    data: ConfigSection,
+    title: string
+  ) => (
     <div className={`mb-4 border ${borderColor} rounded-lg overflow-hidden`}>
       <div className={`${cardBgColor} p-4`}>
         <h2
@@ -205,52 +221,71 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
             isDark ? "text-orange-200" : "text-orange-800"
           }`}
         >
-          External API Keys
+          {title}
         </h2>
       </div>
       <div className={`${bgColor} p-4`}>
-        {Object.entries(config.api_keys).map(([key, value]) => (
+        {Object.entries(data).map(([key, value]) => (
           <div key={key} className="mb-4">
-            <label className="block text-sm font-medium mb-1">
-              {key
-                .split("_")
-                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(" ")}
-            </label>
-            <input
-              type="password"
-              value={value as string}
-              onChange={(e) =>
-                handleConfigChange("api_keys", key, e.target.value)
-              }
-              className={`w-full p-2 rounded ${inputBgColor} ${textColor} border ${inputBorderColor}`}
-            />
-            <a
-              href={
-                key === "alpha_vantage"
-                  ? "https://www.alphavantage.co/support/#api-key"
-                  : key === "open_weather_map"
-                  ? "https://home.openweathermap.org/appid"
-                  : key === "wolfram_alpha"
-                  ? "https://products.wolframalpha.com/api/"
-                  : "#"
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`text-sm ${linkColor} hover:underline flex items-center mt-1`}
-            >
-              Get{" "}
-              {key
-                .split("_")
-                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(" ")}{" "}
-              API key <ExternalLink className="ml-1 h-3 w-3" />
-            </a>
+            {TOOLTIPS[key] ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <label className="block text-sm font-medium mb-1 cursor-help">
+                      {snakeCaseToTitle(key.toLowerCase())}
+                      <span className="ml-1 text-gray-400">ⓘ</span>
+                    </label>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{TOOLTIPS[key]}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <label className="block text-sm font-medium mb-1">
+                {snakeCaseToTitle(key.toLowerCase())}
+              </label>
+            )}
+            {renderInputField(section, key, value)}
+            {(key === "LOG_LEVEL" ||
+              key === "timezone" ||
+              section === "api_keys") && (
+              <a
+                href={
+                  key === "LOG_LEVEL"
+                    ? "https://docs.python.org/3/library/logging.html#logging-levels"
+                    : key === "timezone"
+                    ? "https://en.wikipedia.org/wiki/List_of_tz_database_time_zones"
+                    : section === "api_keys"
+                    ? key === "alpha_vantage"
+                      ? "https://www.alphavantage.co/support/#api-key"
+                      : key === "open_weather_map"
+                      ? "https://home.openweathermap.org/appid"
+                      : key === "wolfram_alpha"
+                      ? "https://products.wolframalpha.com/api/"
+                      : "#"
+                    : "#"
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`text-sm ${linkColor} hover:underline flex items-center mt-1`}
+              >
+                {key === "LOG_LEVEL"
+                  ? "View LOG_LEVEL documentation"
+                  : key === "timezone"
+                  ? "View list of valid timezones"
+                  : section === "api_keys"
+                  ? `Get ${snakeCaseToTitle(key)} API key`
+                  : ""}{" "}
+                <ExternalLink className="ml-1 h-3 w-3" />
+              </a>
+            )}
           </div>
         ))}
       </div>
     </div>
   );
+
   return (
     <div className={`p-4 ${bgColor} ${textColor} min-h-screen`}>
       <div className="container mx-auto">
@@ -268,29 +303,19 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
           </button>
           {lastRefresh && (
             <span className="text-sm">
-              Last refreshed: {lastRefresh?.toLocaleString() || Date()}
+              Last refreshed: {lastRefresh?.toLocaleString()}
             </span>
           )}
         </div>
-        {renderConfigSection(
-          "logging",
-          config.logging,
-          "Logging Configuration"
-        )}
+        {renderConfigSection("logging", config.logging, "Logging Configuration")}
         {renderConfigSection("units", config.units, "Units of Measurement")}
         {renderConfigSection("location", config.location, "Location Settings")}
-        {renderApiKeysSection()}
+        {renderConfigSection("api_keys", config.api_keys, "External API Keys")}
         {renderConfigSection("hana", config.hana, "HANA Configuration")}
-        {/* {renderConfigSection("MQ", config.MQ, "Message Queue Configuration")} // TODO: Do we want to display this section? */}
         {renderConfigSection("iris", config.iris, "IRIS Configuration")}
-        {/* {renderConfigSection(
-          "websocket",
-          config.websocket,
-          "WebSocket Configuration"
-        )} */}
-        {/* {renderSkillsSection()} */}
       </div>
     </div>
   );
 };
+
 export default HubManagementUI;

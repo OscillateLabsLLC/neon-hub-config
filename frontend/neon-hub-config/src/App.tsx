@@ -6,8 +6,11 @@ import NodeServices from './components/NodeServices';
 import ConnectedDevices from './components/ConnectedDevices';
 import SystemUpdates from './components/SystemUpdates';
 import Header from './components/Header';
+import { AuthProvider } from './context/AuthContext';
+// import { AuthProvider, useAuth } from './context/AuthContext';
+// import Login from './components/Login';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [isDark, setIsDark] = useState(false);
   const [activeTab, setActiveTab] = useState('config');
 
@@ -17,6 +20,12 @@ const App: React.FC = () => {
   }, []);
 
   const toggleDarkMode = () => setIsDark(!isDark);
+
+    // const { isAuthenticated } = useAuth();
+
+    // if (!isAuthenticated) {
+    //   return <Login />;
+    // }
 
   return (
     <Router>
@@ -41,4 +50,12 @@ const App: React.FC = () => {
   )
 }
 
-export default App
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+};
+
+export default App;
