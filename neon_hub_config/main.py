@@ -3,6 +3,7 @@ from typing import Dict
 
 from fastapi import Depends, FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from ovos_config import Configuration
 from ovos_utils.log import LOG
 from ruamel.yaml import YAML
@@ -79,6 +80,14 @@ class NeonHubConfigManager:
 app = FastAPI()
 config_manager = NeonHubConfigManager()
 
+origins = ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Dependency to get the config manager
 def get_config_manager():

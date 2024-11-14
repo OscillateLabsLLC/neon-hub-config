@@ -20,6 +20,9 @@ tasks:
       - pnpm run dev
   py-run:
     desc: Run the python server
+    env:
+      OVOS_CONFIG_BASE_FOLDER: neon
+      OVOS_CONFIG_FILENAME: neon.yaml
     cmds:
       - poetry run python neon_hub_config/main.py
   build-docker:
