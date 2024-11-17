@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build_and_publish_docker_websat:
