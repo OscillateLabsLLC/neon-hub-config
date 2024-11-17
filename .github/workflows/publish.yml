@@ -1,0 +1,12 @@
+name: Publish Docker Image
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_publish_docker_websat:
+    uses: neongeckocom/.github/.github/workflows/publish_docker.yml@master
+    secrets: inherit
+    with:
+      image_name: ${{ github.repository }}

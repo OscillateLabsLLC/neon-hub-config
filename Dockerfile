@@ -18,10 +18,25 @@ COPY neon_hub_config ./neon_hub_config
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000
+ENV OVOS_CONFIG_BASE_FOLDER=neon \
+    OVOS_CONFIG_FILENAME=neon.yaml \
+    NEON_HUB_CONFIG_USERNAME=neon \
+    NEON_HUB_CONFIG_PASSWORD=neon
 
 EXPOSE 8000
 
-USER 1000
+RUN groupadd neon && \
+    useradd -g neon -m -d /home/neon neon && \
+    mkdir -p /home/neon/.config && \
+    mkdir -p /home/neon/.config/neon && \
+    chown -R neon:neon /home/neon && \
+    chmod -R 755 /home/neon && \
+    touch /home/neon/.config/neon/neon.yaml && \
+    chown neon:neon /home/neon/.config/neon/neon.yaml && \
+    touch /home/neon/.config/neon/diana.yaml && \
+    chown neon:neon /home/neon/.config/neon/diana.yaml
+
+USER neon:neon
 
 # Run the application
-CMD ["uvicorn", "neon_hub_config.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "neon_hub_config.main:app", "--host", "0.0.0.0", "--port", "80"]

@@ -4,10 +4,13 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import HubManagementUI from './components/HubManagementUI'
 import NodeServices from './components/NodeServices';
 import ConnectedDevices from './components/ConnectedDevices';
-import SystemUpdates from './components/SystemUpdates';
+import HubUpdates from './components/HubUpdates';
 import Header from './components/Header';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Login from './components/Login';
+import LogoutButton from './components/LogoutButton';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [isDark, setIsDark] = useState(false);
   const [activeTab, setActiveTab] = useState('config');
 
@@ -17,6 +20,12 @@ const App: React.FC = () => {
   }, []);
 
   const toggleDarkMode = () => setIsDark(!isDark);
+
+    const { isAuthenticated } = useAuth();
+
+    if (!isAuthenticated) {
+      return <Login />;
+    }
 
   return (
     <Router>
@@ -28,17 +37,26 @@ const App: React.FC = () => {
           <button onClick={() => setActiveTab('services')}>Node Services</button>
           <button onClick={() => setActiveTab('devices')}>Connected Devices</button>
           <button onClick={() => setActiveTab('updates')}>System Updates</button>
+          <LogoutButton />
         </div>
 
         <div className="content-area">
           {activeTab === 'config' && <HubManagementUI isDark={isDark} />}
           {activeTab === 'services' && <NodeServices isDark={isDark} />}
           {activeTab === 'devices' && <ConnectedDevices isDark={isDark} />}
-          {activeTab === 'updates' && <SystemUpdates isDark={isDark} />}
+          {activeTab === 'updates' && <HubUpdates isDark={isDark} />}
         </div>
       </div>
     </Router>
   )
 }
 
-export default App
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+};
+
+export default App;

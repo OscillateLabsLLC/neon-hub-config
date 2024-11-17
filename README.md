@@ -1,36 +1,125 @@
-# Neon Hub Configuration Tool
+# Neon Hub Configuration Interface
 
-## Management UI for Hub configuration
+The Neon Hub Configuration Interface provides a centralized dashboard for managing your Neon Hub settings. The interface offers a user-friendly way to configure various aspects of your hub, with additional features planned for future updates.
 
-- Views for managing Hub configuration, Node services, and system updates
-- Documentation for all
+## Current Features
 
-### Tasks
+### Authentication
 
-a) Develop a user interface for Hub management
-b) Implement views for:
+- Basic authentication required to access the configuration interface
+- Default credentials:
+  - Username: `neon`
+  - Password: `neon`
+- Credentials can be modified using environment variables:
+  - `NEON_HUB_CONFIG_USERNAME`
+  - `NEON_HUB_CONFIG_PASSWORD`
 
-- [ ] Managing Hub configuration (API keys, Hana configuration)
-  - [Claude-generated samples](https://claude.ai/chat/41a0de8d-01ee-4c62-9f88-214afadb71d2)
-  - [ ] All Hana configuration items, obscuring secrets, with a refresh button to pull any updates from file.
-    - Consider an option to show last refresh time
-  - [ ] Do we make the RMQ configuration editable? Or leave that as an advanced user topic?
-  - [ ] All Iris configs
-  - [ ] Websocket
-  - [ ] API keys for external services
-  - [ ] OPTIONAL: JSON editing for skills
-    - Anything more would require settingsmeta.yml to be in all Neon skills
-  - [ ] OPTIONAL: Disabling skills
-    - This would add skills to the blacklist, and you'd create the skill list by pulling from pip in the Neon-skills container and concatenating with the config
-  - [ ] OPTIONAL: Adding skills
-    - This might be a little tricky, but we can have a shortlist of non-default skills users can install via config
-- [x] Enabling/modifying Node services
-  - Completed with Yacht
-- [ ] Viewing connected Node devices (optional)
-- [ ] Updating/restarting running containers (optional)
+### Configuration Tab
 
-c) Test and validate all UI functions
-d) Create user documentation for the management system
+The Configuration tab provides access to four main sections:
+
+#### 1. General Configuration
+
+- **LOG_LEVEL**: Set Python logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- **Language**: Set system language using standard language codes
+- **Time Format**: Choose between 12-hour and 24-hour time display
+- **System Unit**: Select metric or imperial measurement system
+
+#### 2. External API Keys
+
+Manage API keys for various external services:
+
+- [Alpha Vantage](https://www.alphavantage.co/)
+- [OpenWeatherMap](https://home.openweathermap.org/)
+- [Wolfram Alpha](https://products.wolframalpha.com/)
+
+#### 3. HANA Configuration
+
+Manage [HANA (HTTP API for Neon Applications)](https://github.com/NeonGeckoCom/neon-hana)-specific settings:
+
+- FastAPI title and summary
+- Service configurations
+- System preferences
+
+#### 4. IRIS Configuration
+
+Configure [IRIS (Interactive Relay for Intelligence Systems)](https://github.com/NeonGeckoCom/neon-iris) web interface settings:
+
+- WebSocket URL
+- Interface labels
+- Chat input settings
+- Language preferences
+
+### Features
+
+- **Dark/Light Mode**: Automatically detects system preference with manual toggle
+- **Secure Input**: Password and API key fields are protected
+- **Tooltips**: Helpful information available for configuration options
+- **External Links**: Quick access to relevant documentation
+- **Auto-refresh**: Configuration state is kept up-to-date
+- **Section-based Saving**: Individual sections can be saved independently
+
+## Future Updates
+
+The following features are currently in development:
+
+- **Node Services**: Manage and monitor Neon Node services
+- **Connected Devices**: View and manage devices connected to your hub
+- **System Updates**: Handle system and component updates - currently handled through Yacht
+
+## Technical Details
+
+### API Endpoints
+
+- `/v1/neon_config`: GET and POST Neon configuration
+- `/v1/diana_config`: GET and POST Diana configuration
+- `/auth`: Authentication endpoint
+
+### Configuration Storage
+
+- Neon configuration uses the OVOS configuration system
+- Diana configuration is stored in `diana.yaml`
+- All configurations persist across system restarts
+
+### Security Notes
+
+- Basic authentication is implemented for initial security
+- All sensitive fields (passwords, API keys) are masked in the interface
+- Configuration changes require authentication
+- CORS is enabled for API access
+
+## Best Practices
+
+1. Regularly back up your configuration
+2. Use strong passwords for authentication
+3. Keep API keys secure and rotate them periodically
+4. Test configuration changes in non-production environments first
+5. Monitor LOG_LEVEL settings in production environments
+
+## Running the Docker Container
+
+To run the Neon Hub Configuration Interface as a Docker container, use the following command:
+
+```bash
+docker run -d -p 80:80 ghcr.io/neongeckocom/neon-hub-config:latest
+```
+
+For usage in a Neon Hub system, you will want to mount the configuration directory as a volume:
+
+```bash
+docker run -d -p 80:80 -v ~/.config/neon:/home/neon/.config/neon ghcr.io/neongeckocom/neon-hub-config:latest
+```
+
+## Support
+
+For additional documentation and support:
+
+- Python logging levels: [Python Logging Documentation](https://docs.python.org/3/library/logging.html#logging-levels)
+- Language codes: [Langcodes Documentation](https://langcodes-hickford.readthedocs.io/en/sphinx/index.html#standards-implemented)
+- API key services:
+  - [Alpha Vantage API](https://www.alphavantage.co/support/#api-key)
+  - [OpenWeatherMap API](https://home.openweathermap.org/appid)
+  - [Wolfram Alpha API](https://products.wolframalpha.com/api/)
 
 ## Developing the UI
 
@@ -64,4 +153,4 @@ To run the UI, run the following command in the root of the repository:
 poetry run python neon_hub_config/main.py
 ```
 
-The UI will be available at `http://localhost:8000`.
+The UI will be available at `http://localhost`.

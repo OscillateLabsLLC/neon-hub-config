@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "build:py": "pnpm run build && cp -r dist/* ../../neon_hub_config/static"
+    "build:py": "pnpm run build && rm -rf ../../neon_hub_config/static && mkdir -p ../../neon_hub_config/static && cp -r dist/* ../../neon_hub_config/static"
   },
   "dependencies": {
     "lucide-react": "^0.453.0",
