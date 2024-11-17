@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { RefreshCw, ExternalLink } from "lucide-react";
+import { RefreshCw, ExternalLink, ArrowUp } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -7,18 +7,26 @@ import {
   TooltipTrigger,
 } from "../components/ui/tooltip";
 import SecretField from "./SecretField";
+
 interface TooltipInterface {
   [key: string]: string;
 }
+
+const GENERAL_SETTINGS = [
+  "LOG_LEVEL",
+  "lang",
+  "time_format",
+  "system_unit",
+] as const;
+
 const TOOLTIPS: TooltipInterface = {
   LOG_LEVEL:
     "The level of logging to be used by the backend. Supports Python logging levels.",
   system_unit:
-    "The system of measurement to be used by the backend. Options: metric, imperial.",
+    "The system of measurement to be used by the backend. Options: metric, imperial (typically U.S.).",
   time_format:
     "The format for displaying time. Options: half (12-hour format), full (24-hour format).",
-  lang:
-    "The language/country code to be used by the backend. Must be a language code supported by the Python langcodes library.",
+  lang: "The language/country code to be used by the backend. Must be a language code supported by the Python langcodes library.",
   default_lang: "The default language to be used by the IRIS web interface.",
   languages: "The languages supported by the IRIS web interface.",
   webui_chatbot_label: "The title in the IRIS web interface.",
@@ -30,7 +38,8 @@ const TOOLTIPS: TooltipInterface = {
     "The WebSocket URL for the IRIS web interface, e.g. wss://<your-hub-ip>/ws. Must be wss for IRIS websat.",
   fastapi_title: "The title of the HANA instance.",
   fastapi_summary: "The summary text of the HANA instance.",
-  enable_email: "Whether to enable email functionality in the backend.",
+  enable_email:
+    "Whether to enable email functionality in the backend. Requires advanced manual configuration.",
   node_username: "The username for connecting a Neon Node to your Neon Hub.",
   node_password: "The password for connecting a Neon Node to your Neon Hub.",
 };
@@ -50,7 +59,8 @@ interface Config {
   MQ?: ConfigSection;
   iris?: ConfigSection;
   websocket?: ConfigSection;
-  logging?: ConfigSection;
+  general?: ConfigSection;
+  LOG_LEVEL?: string;
   skills?: {
     default_skills: string[];
     extra_dependencies: {
@@ -64,6 +74,15 @@ interface Config {
 interface HubManagementUIProps {
   isDark: boolean;
 }
+
+interface SavingStates {
+  [key: string]: boolean;
+}
+
+interface SaveErrors {
+  [key: string]: string | null;
+}
+
 const snakeCaseToTitle = (str: string) =>
   str
     .split("_")
@@ -72,10 +91,10 @@ const snakeCaseToTitle = (str: string) =>
 
 const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
   const [config, setConfig] = useState<Config>({
-    system_unit: "metric",
+    system_unit: "imperial",
     time_format: "half",
-    lang: 'en-us',
-    logging: { LOG_LEVEL: "" },
+    lang: "en-us",
+    LOG_LEVEL: "INFO",
     hana: {},
     iris: {},
     skills: { default_skills: [], extra_dependencies: {} },
@@ -83,113 +102,185 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [debouncedConfig, setDebouncedConfig] = useState(config);
+  const [savingStates, setSavingStates] = useState<SavingStates>({});
+  const [saveError, setSaveErrors] = useState<SaveErrors>({});
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedConfig(config);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [config]);
-  useEffect(() => {
-    if (!loading && lastRefresh) {
-      saveConfig();
-    }
-  }, [debouncedConfig]);
+    const handleScroll = () => {
+      // Show button when user scrolls down 200px
+      setShowScrollTop(window.scrollY > 200);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   const fetchConfig = async () => {
+    console.debug("Fetching config...");
     setLoading(true);
     setError(null);
     try {
       // Fetch Neon config with explicit JSON headers
-      const neonResponse = await fetch('http://127.0.0.1:8000/v1/neon_config', {
+      console.debug("Fetching Neon config...");
+      const neonResponse = await fetch("http://127.0.0.1/v1/neon_config", {
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
       });
-      
+
+      console.debug("Neon response status:", neonResponse.status);
+
       // Check for JSON response
-      const neonContentType = neonResponse.headers.get('content-type');
-      if (!neonContentType?.includes('application/json')) {
-        throw new Error('Server returned non-JSON response. Please check the API endpoint.');
+      const neonContentType = neonResponse.headers.get("content-type");
+      if (!neonContentType?.includes("application/json")) {
+        throw new Error(
+          "Server returned non-JSON response. Please check the API endpoint."
+        );
       }
-      
+
       if (!neonResponse.ok) {
-        throw new Error(`Failed to fetch Neon config: ${neonResponse.statusText}`);
+        throw new Error(
+          `Failed to fetch Neon config: ${neonResponse.statusText}`
+        );
       }
-      
+
       const neonData = await neonResponse.json();
-  
+      console.debug("Neon data received:", neonData);
+
       // Fetch Diana config with explicit JSON headers
-      const dianaResponse = await fetch('http://127.0.0.1:8000/v1/diana_config', {
+      console.debug("Fetching Diana config...");
+      const dianaResponse = await fetch("http://127.0.0.1/v1/diana_config", {
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
       });
-      
+
+      console.debug("Diana response status:", dianaResponse.status);
+
       // Check for JSON response
-      const dianaContentType = dianaResponse.headers.get('content-type');
-      if (!dianaContentType?.includes('application/json')) {
-        throw new Error('Server returned non-JSON response. Please check the API endpoint.');
+      const dianaContentType = dianaResponse.headers.get("content-type");
+      if (!dianaContentType?.includes("application/json")) {
+        throw new Error(
+          "Server returned non-JSON response. Please check the API endpoint."
+        );
       }
-      
+
       if (!dianaResponse.ok) {
-        throw new Error(`Failed to fetch Diana config: ${dianaResponse.statusText}`);
+        throw new Error(
+          `Failed to fetch Diana config: ${dianaResponse.statusText}`
+        );
       }
-      
+
       const dianaData = await dianaResponse.json();
-  
-      setConfig(prev => ({
+      console.debug("Diana data received:", dianaData);
+
+      setConfig((prev) => ({
         ...prev,
         ...dianaData,
         ...neonData,
       }));
-      
+
       setLastRefresh(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch configuration');
-      console.error('Config fetch error:', err);
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch configuration"
+      );
+      console.error("Config fetch error:", err);
     } finally {
       setLoading(false);
     }
   };
-  const saveConfig = async () => {
-    setSaving(true);
-    setSaveError(null);
+
+  const saveConfigSection = async (sectionKey: string) => {
+    setSavingStates((prev) => ({ ...prev, [sectionKey]: true }));
+    setSaveErrors((prev) => ({ ...prev, [sectionKey]: null }));
+
     try {
-      const dianaConfig = { iris: config.iris };
-      const { iris, ...neonConfig } = config;
-      const dianaResponse = await fetch("http://127.0.0.1:8000/v1/diana_config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dianaConfig),
-      });
-      if (!dianaResponse.ok) throw new Error("Failed to save Diana config");
-      const neonResponse = await fetch("http://127.0.0.1:8000/v1/neon_config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(neonConfig),
-      });
-      if (!neonResponse.ok) throw new Error("Failed to save Neon config");
+      if (sectionKey === "iris" || sectionKey === "hana") {
+        const dianaConfig = { iris: config.iris, hana: config.hana };
+        const response = await fetch("http://127.0.0.1/v1/diana_config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(dianaConfig),
+        });
+        if (!response.ok) throw new Error("Failed to save IRIS configuration");
+      } else {
+        const configToSave =
+          sectionKey === "general"
+            ? GENERAL_SETTINGS.reduce(
+                (acc, key) => ({
+                  ...acc,
+                  [key]: config[key],
+                }),
+                {}
+              )
+            : { [sectionKey]: config[sectionKey as keyof Config] };
+
+        console.log("Saving config:", configToSave);
+
+        const response = await fetch("http://127.0.0.1/v1/neon_config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(configToSave),
+        });
+        if (!response.ok)
+          throw new Error(`Failed to save ${sectionKey} configuration`);
+
+        const updatedConfig = await fetch("http://127.0.0.1/v1/neon_config", {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        });
+        const neonData = await updatedConfig.json();
+
+        setConfig((prev) => ({
+          ...prev,
+          ...neonData,
+        }));
+      }
+      setLastRefresh(new Date());
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : "Failed to save configuration"
-      );
+      setSaveErrors((prev) => ({
+        ...prev,
+        [sectionKey]:
+          err instanceof Error
+            ? err.message
+            : `Failed to save ${sectionKey} configuration`,
+      }));
     } finally {
-      setSaving(false);
+      setSavingStates((prev) => ({ ...prev, [sectionKey]: false }));
     }
   };
+
   useEffect(() => {
     fetchConfig();
   }, []);
+
   const handleConfigChange = (
     section: keyof Config,
     key: string,
     value: ConfigSectionValue
   ) => {
     setConfig((prev) => {
+      if (section === "general") {
+        // For general section, update at root level
+        return {
+          ...prev,
+          [key]: value,
+        };
+      }
+      // For other sections, update within the section
       const currentSection = prev[section] as ConfigSection;
       return {
         ...prev,
@@ -200,30 +291,45 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
       };
     });
   };
-  const isSecret = (section: keyof Config, key: string): boolean => {
-    return (
+
+  const isSecret = (section: keyof Config | string, key: string): boolean => {
+    // Always check if the key contains sensitive terms
+    const isSensitiveKey =
       key.includes("password") ||
       key.includes("secret") ||
-      key.includes("api_key") ||
-      section === "api_keys"
-    );
+      key.includes("api_key");
+
+    // Check if we're in the api_keys section
+    const isApiKeysSection = section === "api_keys";
+
+    return isSensitiveKey || isApiKeysSection;
   };
 
-  const renderInputField = (section: keyof Config, key: string, value: unknown) => {
+  const renderInputField = (
+    section: keyof Config | string,
+    key: string,
+    value: unknown
+  ) => {
     const baseInputClass = `w-full p-2 rounded ${
       isDark ? "bg-gray-700" : "bg-white"
     } ${isDark ? "text-white" : "text-gray-900"} border ${
       isDark ? "border-orange-400" : "border-orange-600"
     }`;
-  
+
     // Handle object values
-    if (typeof value === 'object' && value !== null) {
+    if (typeof value === "object" && value !== null) {
       if (Array.isArray(value)) {
         return (
           <input
             type="text"
-            value={value.join(', ')}
-            onChange={(e) => handleConfigChange(section, key, e.target.value.split(',').map(item => item.trim()))}
+            value={value.join(", ")}
+            onChange={(e) =>
+              handleConfigChange(
+                section,
+                key,
+                e.target.value.split(",").map((item) => item.trim())
+              )
+            }
             className={baseInputClass}
           />
         );
@@ -237,7 +343,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
               const parsed = JSON.parse(e.target.value);
               handleConfigChange(section, key, parsed);
             } catch (err) {
-              console.error(err)
+              console.error(err);
               // If invalid JSON, store as is
               handleConfigChange(section, key, e.target.value);
             }
@@ -247,7 +353,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
         />
       );
     }
-  
+
     if (isSecret(section, key)) {
       return (
         <SecretField
@@ -258,7 +364,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
         />
       );
     }
-  
+
     if (key === "LOG_LEVEL") {
       return (
         <select
@@ -274,7 +380,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
         </select>
       );
     }
-  
+
     if (key === "system_unit") {
       return (
         <select
@@ -287,7 +393,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
         </select>
       );
     }
-  
+
     if (key === "time_format") {
       return (
         <select
@@ -295,12 +401,12 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
           onChange={(e) => handleConfigChange(section, key, e.target.value)}
           className={baseInputClass}
         >
-          <option value="half">12-hour</option>
-          <option value="full">24-hour</option>
+          <option value="half">12-hour (HH:MM am/pm)</option>
+          <option value="full">24-hour (HH:MM)</option>
         </select>
       );
     }
-  
+
     return (
       <input
         type={typeof value === "number" ? "number" : "text"}
@@ -315,82 +421,116 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
   const borderColor = isDark ? "border-orange-400" : "border-orange-600";
   const cardBgColor = isDark ? "bg-gray-800" : "bg-orange-100";
   const linkColor = isDark ? "text-orange-400" : "text-orange-600";
+
   const renderConfigSection = (
     section: keyof Config,
     data: ConfigSection | string | object,
     title: string
-  ) => (
-    <div className={`mb-4 border ${borderColor} rounded-lg overflow-hidden`}>
-      <div className={`${cardBgColor} p-4`}>
-        <h2
-          className={`text-xl font-semibold ${
-            isDark ? "text-orange-200" : "text-orange-800"
-          }`}
-        >
-          {title}
-        </h2>
-      </div>
-      <div className={`${bgColor} p-4`}>
-        {Object.entries(data).map(([key, value]) => (
-          <div key={key} className="mb-4">
-            {TOOLTIPS[key] ? (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <label className="block text-sm font-medium mb-1 cursor-help">
-                      {snakeCaseToTitle(key.toLowerCase())}
-                      <span className="ml-1 text-gray-400">ⓘ</span>
-                    </label>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{TOOLTIPS[key]}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ) : (
-              <label className="block text-sm font-medium mb-1">
-                {snakeCaseToTitle(key.toLowerCase())}
-              </label>
-            )}
-            {renderInputField(section, key, value)}
-            {(key === "LOG_LEVEL" ||
-              key === "lang" ||
-              section === "api_keys") && (
-              <a
-                href={
-                  key === "LOG_LEVEL"
-                    ? "https://docs.python.org/3/library/logging.html#logging-levels"
-                    : key === "lang"
-                    ? "https://langcodes-hickford.readthedocs.io/en/sphinx/index.html#standards-implemented"
-                    : section === "api_keys"
-                    ? key === "alpha_vantage"
-                      ? "https://www.alphavantage.co/support/#api-key"
-                      : key === "open_weather_map"
-                      ? "https://home.openweathermap.org/appid"
-                      : key === "wolfram_alpha"
-                      ? "https://products.wolframalpha.com/api/"
+  ) => {
+    const sectionKey = section.toString();
+    return (
+      <div className={`mb-4 border ${borderColor} rounded-lg overflow-hidden`}>
+        <div className={`${cardBgColor} p-4 flex justify-between items-center`}>
+          <h2
+            className={`text-xl font-semibold ${
+              isDark ? "text-orange-200" : "text-orange-800"
+            }`}
+          >
+            {title}
+          </h2>
+          <button
+            onClick={() => saveConfigSection(sectionKey)}
+            disabled={savingStates[sectionKey]}
+            className={`
+    flex items-center gap-2 px-4 py-2 rounded
+    ${
+      isDark
+        ? "bg-orange-600 hover:bg-orange-700"
+        : "bg-orange-500 hover:bg-orange-600"
+    } 
+    text-white transition-colors
+    disabled:opacity-50 disabled:cursor-not-allowed
+    focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50
+  `}
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${
+                savingStates[sectionKey] ? "animate-spin" : ""
+              }`}
+            />
+            {savingStates[sectionKey] ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+        {saveError[section] && (
+          <div className="p-4 bg-red-500 text-white">{saveError[section]}</div>
+        )}
+
+        <div className={`${bgColor} p-4`}>
+          {Object.entries(data).map(([key, value]) => (
+            <div key={key} className="mb-4">
+              {TOOLTIPS[key] ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild onClick={(e: React.MouseEvent<HTMLLabelElement>) => e.preventDefault()}>
+                      <label className="block text-sm font-medium mb-1 cursor-help">
+                        {snakeCaseToTitle(key.toLowerCase())}
+                        <span className="ml-1 text-gray-400">ⓘ</span>
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs p-2 text-sm"
+                      sideOffset={5}
+                    >
+                      <p>{TOOLTIPS[key]}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <label className="block text-sm font-medium mb-1">
+                  {snakeCaseToTitle(key.toLowerCase())}
+                </label>
+              )}
+              {renderInputField(section, key, value)}
+              {(key === "LOG_LEVEL" ||
+                key === "lang" ||
+                section === "api_keys") && (
+                <a
+                  href={
+                    key === "LOG_LEVEL"
+                      ? "https://docs.python.org/3/library/logging.html#logging-levels"
+                      : key === "lang"
+                      ? "https://langcodes-hickford.readthedocs.io/en/sphinx/index.html#standards-implemented"
+                      : section === "api_keys"
+                      ? key === "alpha_vantage"
+                        ? "https://www.alphavantage.co/support/#api-key"
+                        : key === "open_weather_map"
+                        ? "https://home.openweathermap.org/appid"
+                        : key === "wolfram_alpha"
+                        ? "https://products.wolframalpha.com/api/"
+                        : "#"
                       : "#"
-                    : "#"
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`text-sm ${linkColor} hover:underline flex items-center mt-1`}
-              >
-                {key === "LOG_LEVEL"
-                  ? "View LOG_LEVEL documentation"
-                  : key === "lang"
-                  ? "View library documentation for language/country codes"
-                  : section === "api_keys"
-                  ? `Get ${snakeCaseToTitle(key)} API key`
-                  : ""}{" "}
-                <ExternalLink className="ml-1 h-3 w-3" />
-              </a>
-            )}
-          </div>
-        ))}
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`text-sm ${linkColor} hover:underline flex items-center mt-1`}
+                >
+                  {key === "LOG_LEVEL"
+                    ? "View LOG_LEVEL documentation"
+                    : key === "lang"
+                    ? "View library documentation for language/country codes"
+                    : section === "api_keys"
+                    ? `Get ${snakeCaseToTitle(key)} API key`
+                    : ""}{" "}
+                  <ExternalLink className="ml-1 h-3 w-3" />
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
   if (loading && !lastRefresh) {
     return (
       <div
@@ -401,7 +541,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
     );
   }
   return (
-    <div className={`p-4 ${bgColor} ${textColor} min-h-screen`}>
+    <div className={`p-4 ${bgColor} ${textColor} min-h-screen relative`}>
       <div className="container mx-auto">
         <div className="mb-4 flex justify-between items-center">
           <button
@@ -429,25 +569,44 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
             {error}
           </div>
         )}
-        {saveError && (
-          <div className={`mb-4 p-4 rounded-lg bg-red-500 text-white`}>
-            {saveError}
-          </div>
+
+        {renderConfigSection(
+          "general",
+          GENERAL_SETTINGS.reduce(
+            (acc, key) => ({
+              ...acc,
+              [key]: config[key],
+            }),
+            {}
+          ),
+          "General Configuration"
         )}
-        {saving && (
-          <div
-            className={`mb-4 p-4 rounded-lg ${
-              isDark ? "bg-gray-700" : "bg-gray-100"
-            }`}
-          >
-            Saving changes...
-          </div>
+        {renderConfigSection(
+          "api_keys",
+          config.api_keys || {},
+          "External API Keys"
         )}
-      {renderConfigSection("general", {...config.logging, "lang": config.lang}, "General Configuration")}
-      {renderConfigSection("api_keys", config.api_keys || {}, "External API Keys")}
-      {renderConfigSection("hana", config.hana || {}, "HANA Configuration")}
-      {renderConfigSection("iris", config.iris || {}, "IRIS Configuration")}
+        {renderConfigSection("hana", config.hana || {}, "HANA Configuration")}
+        {renderConfigSection("iris", config.iris || {}, "IRIS Configuration")}
       </div>
+      <button
+        onClick={scrollToTop}
+        className={`
+        fixed bottom-4 right-4 p-2 rounded-full
+        ${showScrollTop ? "opacity-100" : "opacity-0 pointer-events-none"}
+        ${
+          isDark
+            ? "bg-orange-600 hover:bg-orange-700"
+            : "bg-orange-500 hover:bg-orange-600"
+        }
+        text-white transition-all duration-300 ease-in-out
+        focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50
+        shadow-lg hover:shadow-xl
+      `}
+        aria-label="Scroll to top"
+      >
+        <ArrowUp className="h-4 w-4" />
+      </button>
     </div>
   );
 };

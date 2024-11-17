@@ -30,3 +30,7 @@ tasks:
     cmds:
       - task build-fe
       - docker build -t neon-hub-config .
+  docker-run:
+    desc: Run the production docker image from a local build
+    cmds:
+      - docker run -p 80:80 -v ~/.config/neon:/home/neon/.config/neon neon-hub-config

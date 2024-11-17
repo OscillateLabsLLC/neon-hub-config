@@ -12,8 +12,11 @@ const SecretField: React.FC<{
   const toggleVisibility = () => setShowSecret(!showSecret);
   
   const buttonClass = `absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md 
-    ${isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-200'} 
-    transition-colors duration-200`;
+    ${isDark 
+      ? 'text-gray-300 hover:text-white hover:bg-gray-600' 
+      : 'text-orange-600 hover:text-orange-800 hover:bg-orange-50'
+    } 
+    transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500`;
 
   return (
     <div className="relative">
