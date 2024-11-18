@@ -13,7 +13,7 @@ import logging
 from functools import wraps
 from os import getenv
 from os.path import exists, join, realpath, split
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -64,6 +64,8 @@ class NeonHubConfigManager:
 
         # Initialize Neon configuration
         self.neon_config = Configuration()
+        self.neon_user_config_path = self.neon_config.xdg_configs[0].path
+        self.neon_user_config = self._load_neon_user_config()
 
         # Initialize Diana config
         self.logger.info(f"Loading Diana config in {self.neon_config.xdg_configs[0].path}")
@@ -72,14 +74,8 @@ class NeonHubConfigManager:
         self.diana_config = self._load_diana_config()
 
     def _load_diana_config(self) -> Dict:
-        """
-        Load Diana configuration from file, creating it with defaults if needed.
-
-        Returns:
-            Dict: The loaded configuration or default configuration if loading fails
-        """
+        """Load Diana configuration from file, creating it with defaults if needed."""
         if not exists(self.diana_config_path):
-            # Create the file with default config if it doesn't exist
             self._save_diana_config(self.default_diana_config)
             return self.default_diana_config.copy()
 
@@ -89,10 +85,25 @@ class NeonHubConfigManager:
                 if config is None:  # File exists but is empty
                     config = self.default_diana_config.copy()
                     self._save_diana_config(config)
+                self.diana_config = config
                 return config
         except Exception as e:
             self.logger.exception(f"Error loading config: {e}")
             return self.default_diana_config.copy()
+
+    def _load_neon_user_config(self) -> Optional[Dict]:
+        """
+        Load Neon user configuration from file, creating it with defaults if needed.
+
+        Returns:
+            Optional[Dict]: The loaded configuration or default configuration if loading fails
+        """
+        try:
+            with open(self.neon_user_config_path, "r", encoding="utf-8") as file:
+                config = self.yaml.load(file)
+                return config
+        except Exception as e:
+            self.logger.exception(f"Error loading Neon user config: {e}")
 
     def _save_diana_config(self, config: Dict) -> None:
         """
@@ -119,6 +130,16 @@ class NeonHubConfigManager:
         self.neon_config.reload()
         return self.neon_config
 
+    def get_neon_user_config(self) -> Optional[Dict]:
+        """
+        Get the current Neon user configuration.
+
+        Returns:
+            Dict: Current Neon user configuration
+        """
+        self._load_neon_user_config()
+        return self.neon_user_config or None
+
     def update_neon_config(self, config: Dict) -> Dict:
         """
         Update the Neon Hub configuration.
@@ -141,6 +162,7 @@ class NeonHubConfigManager:
         Returns:
             Dict: Current Diana configuration
         """
+        self._load_diana_config()
         return self.diana_config
 
     def update_diana_config(self, config: Dict) -> Dict:
@@ -155,7 +177,7 @@ class NeonHubConfigManager:
         """
         self.logger.info("Updating Diana config")
         self._save_diana_config(config)
-        return self.diana_config
+        return self._load_diana_config()
 
 
 app = FastAPI(
@@ -266,6 +288,39 @@ async def neon_update_config(
     """
     logger.info("Updating Neon config")
     return manager.update_neon_config(config)
+
+@app.get("/v1/neon_user_config")
+async def neon_get_user_config(
+    manager: NeonHubConfigManager = Depends(get_config_manager)
+):
+    """
+    Get the current Neon Hub configuration.
+
+    Returns:
+        Dict: Current Neon Hub configuration
+    """
+    config = manager.get_neon_user_config()
+    if config is None:
+        return {"error": "Failed to load Neon user config"}
+    return config
+
+
+# @app.post("/v1/neon_config")
+# async def neon_update_user_config(
+#     config: Dict,
+#     manager: NeonHubConfigManager = Depends(get_config_manager),
+# ):
+#     """
+#     Update the Neon Hub configuration.
+
+#     Args:
+#         config (Dict): New configuration to apply
+
+#     Returns:
+#         Dict: Updated configuration
+#     """
+#     logger.info("Updating Neon config")
+#     return manager.update_neon_user_config(config)
 
 
 @app.get("/v1/diana_config")

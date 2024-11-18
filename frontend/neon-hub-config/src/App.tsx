@@ -9,15 +9,20 @@ import Header from './components/Header';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login';
 import LogoutButton from './components/LogoutButton';
+import Advanced from './components/Advanced';
 
 const AppContent: React.FC = () => {
   const [isDark, setIsDark] = useState(false);
-  const [activeTab, setActiveTab] = useState('config');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'config');
 
   useEffect(() => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     setIsDark(prefersDark);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
 
   const toggleDarkMode = () => setIsDark(!isDark);
 
@@ -37,6 +42,7 @@ const AppContent: React.FC = () => {
           <button onClick={() => setActiveTab('services')}>Node Services</button>
           <button onClick={() => setActiveTab('devices')}>Connected Devices</button>
           <button onClick={() => setActiveTab('updates')}>System Updates</button>
+          <button onClick={() => setActiveTab('advanced')}>Advanced</button>
           <LogoutButton />
         </div>
 
@@ -45,6 +51,7 @@ const AppContent: React.FC = () => {
           {activeTab === 'services' && <NodeServices isDark={isDark} />}
           {activeTab === 'devices' && <ConnectedDevices isDark={isDark} />}
           {activeTab === 'updates' && <HubUpdates isDark={isDark} />}
+          {activeTab === 'advanced' && <Advanced isDark={isDark} />}
         </div>
       </div>
     </Router>
