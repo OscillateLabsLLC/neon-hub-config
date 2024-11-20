@@ -2,6 +2,13 @@
 version: "3"
 
 tasks:
+  sbom:
+    desc: Generate a software bill of materials for the project
+    cmds:
+      - snyk sbom --format spdx2.3+json > sbom.json
+      - cd frontend
+      - snyk sbom --format spdx2.3+json > sbom.json
+      - cd ..
   build-fe:
     dir: frontend/neon-hub-config
     desc: Build the frontend
