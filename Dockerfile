@@ -17,13 +17,13 @@ COPY neon_hub_config ./neon_hub_config
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+    PORT=80
 ENV OVOS_CONFIG_BASE_FOLDER=neon \
     OVOS_CONFIG_FILENAME=neon.yaml \
     NEON_HUB_CONFIG_USERNAME=neon \
     NEON_HUB_CONFIG_PASSWORD=neon
 
-EXPOSE 8000
+EXPOSE 80
 
 RUN groupadd neon && \
     useradd -g neon -m -d /home/neon neon && \
