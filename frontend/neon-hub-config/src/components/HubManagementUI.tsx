@@ -184,7 +184,7 @@ const BaseUrlConfig: React.FC<{ isDark: boolean }> = ({ isDark }) => {
     <div className={`mb-4 border ${isDark ? "border-orange-400" : "border-orange-600"} rounded-lg p-4`}>
       <div className="flex items-center justify-between">
         <h3 className={`text-lg font-medium ${isDark ? "text-orange-200" : "text-orange-800"}`}>
-          API Configuration
+          API Configuration (Advanced)
         </h3>
         <button
           onClick={() => setIsEditing(!isEditing)}
@@ -214,7 +214,10 @@ const BaseUrlConfig: React.FC<{ isDark: boolean }> = ({ isDark }) => {
           </button>
         </div>
       ) : (
+        <div>
         <p className="mt-2">Current API Base URL: {baseUrl}</p>
+        <p className="mt-2">Usually, this will match what you connect to from your browser. Only try to change if config fails to load!</p>
+        </div>
       )}
     </div>
   );
@@ -623,8 +626,6 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
             {error}
           </div>
         )}
-
-        <BaseUrlConfig isDark={isDark} />
         
         {renderConfigSection(
           "general",
@@ -644,6 +645,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
         )}
         {renderConfigSection("hana", config.hana || {}, "HANA Configuration")}
         {renderConfigSection("iris", config.iris || {}, "IRIS Configuration")}
+        <BaseUrlConfig isDark={isDark} />
       </div>
       <button
         onClick={scrollToTop}
