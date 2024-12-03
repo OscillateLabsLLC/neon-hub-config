@@ -8,6 +8,88 @@ import {
 } from "../components/ui/tooltip";
 import SecretField from "./SecretField";
 
+// Build-time configuration with runtime fallback
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+
+// API utilities
+const api = {
+  // Method to update runtime configuration
+  setBaseUrl: (baseUrl: string) => {
+    localStorage.setItem('apiConfig', JSON.stringify({ baseUrl }));
+    window.location.reload();
+  },
+
+  getBaseUrl: () => {
+    try {
+      const storedConfig = localStorage.getItem('apiConfig');
+      if (storedConfig) {
+        return JSON.parse(storedConfig).baseUrl;
+      }
+    } catch (e) {
+      console.warn('Failed to load runtime config:', e);
+    }
+    return API_BASE_URL;
+  },
+
+  async fetchNeonConfig() {
+    const response = await fetch(`${api.getBaseUrl()}/v1/neon_config`, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Neon config: ${response.statusText}`);
+    }
+    
+    return response.json();
+  },
+
+  async fetchDianaConfig() {
+    const response = await fetch(`${api.getBaseUrl()}/v1/diana_config`, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Diana config: ${response.statusText}`);
+    }
+    
+    return response.json();
+  },
+
+  async saveNeonConfig(config: object) {
+    const response = await fetch(`${api.getBaseUrl()}/v1/neon_config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    });
+    
+    if (!response.ok) {
+      throw new Error("Failed to save Neon configuration");
+    }
+    
+    return response.json();
+  },
+
+  async saveDianaConfig(config: object) {
+    const response = await fetch(`${api.getBaseUrl()}/v1/diana_config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    });
+    
+    if (!response.ok) {
+      throw new Error("Failed to save Diana configuration");
+    }
+    
+    return response.json();
+  }
+};
+
 interface TooltipInterface {
   [key: string]: string;
 }
@@ -83,6 +165,64 @@ interface SaveErrors {
   [key: string]: string | null;
 }
 
+const BaseUrlConfig: React.FC<{ isDark: boolean }> = ({ isDark }) => {
+  const [baseUrl, setBaseUrl] = useState(api.getBaseUrl());
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleSave = () => {
+    api.setBaseUrl(baseUrl);
+    setIsEditing(false);
+  };
+
+  const baseInputClass = `w-full p-2 rounded ${
+    isDark ? "bg-gray-700" : "bg-white"
+  } ${isDark ? "text-white" : "text-gray-900"} border ${
+    isDark ? "border-orange-400" : "border-orange-600"
+  }`;
+
+  return (
+    <div className={`mb-4 border ${isDark ? "border-orange-400" : "border-orange-600"} rounded-lg p-4`}>
+      <div className="flex items-center justify-between">
+        <h3 className={`text-lg font-medium ${isDark ? "text-orange-200" : "text-orange-800"}`}>
+          API Configuration (Advanced)
+        </h3>
+        <button
+          onClick={() => setIsEditing(!isEditing)}
+          className={`px-3 py-1 rounded ${
+            isDark ? "bg-orange-600 hover:bg-orange-700" : "bg-orange-500 hover:bg-orange-600"
+          } text-white`}
+        >
+          {isEditing ? "Cancel" : "Edit"}
+        </button>
+      </div>
+      {isEditing ? (
+        <div className="mt-2 flex gap-2">
+          <input
+            type="text"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            className={baseInputClass}
+            placeholder="Enter API base URL"
+          />
+          <button
+            onClick={handleSave}
+            className={`px-4 py-2 rounded ${
+              isDark ? "bg-orange-600 hover:bg-orange-700" : "bg-orange-500 hover:bg-orange-600"
+            } text-white`}
+          >
+            Save
+          </button>
+        </div>
+      ) : (
+        <div>
+        <p className="mt-2">Current API Base URL: {baseUrl}</p>
+        <p className="mt-2">Usually, this will match what you connect to from your browser. Only try to change if config fails to load!</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const snakeCaseToTitle = (str: string) =>
   str
     .split("_")
@@ -108,7 +248,6 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
 
   useEffect(() => {
     const handleScroll = () => {
-      // Show button when user scrolls down 200px
       setShowScrollTop(window.scrollY > 200);
     };
 
@@ -128,61 +267,10 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
     setLoading(true);
     setError(null);
     try {
-      // Fetch Neon config with explicit JSON headers
-      console.debug("Fetching Neon config...");
-      const neonResponse = await fetch("http://127.0.0.1/v1/neon_config", {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
-
-      console.debug("Neon response status:", neonResponse.status);
-
-      // Check for JSON response
-      const neonContentType = neonResponse.headers.get("content-type");
-      if (!neonContentType?.includes("application/json")) {
-        throw new Error(
-          "Server returned non-JSON response. Please check the API endpoint."
-        );
-      }
-
-      if (!neonResponse.ok) {
-        throw new Error(
-          `Failed to fetch Neon config: ${neonResponse.statusText}`
-        );
-      }
-
-      const neonData = await neonResponse.json();
-      console.debug("Neon data received:", neonData);
-
-      // Fetch Diana config with explicit JSON headers
-      console.debug("Fetching Diana config...");
-      const dianaResponse = await fetch("http://127.0.0.1/v1/diana_config", {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
-
-      console.debug("Diana response status:", dianaResponse.status);
-
-      // Check for JSON response
-      const dianaContentType = dianaResponse.headers.get("content-type");
-      if (!dianaContentType?.includes("application/json")) {
-        throw new Error(
-          "Server returned non-JSON response. Please check the API endpoint."
-        );
-      }
-
-      if (!dianaResponse.ok) {
-        throw new Error(
-          `Failed to fetch Diana config: ${dianaResponse.statusText}`
-        );
-      }
-
-      const dianaData = await dianaResponse.json();
-      console.debug("Diana data received:", dianaData);
+      const [neonData, dianaData] = await Promise.all([
+        api.fetchNeonConfig(),
+        api.fetchDianaConfig()
+      ]);
 
       setConfig((prev) => ({
         ...prev,
@@ -192,9 +280,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
 
       setLastRefresh(new Date());
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch configuration"
-      );
+      setError(err instanceof Error ? err.message : "Failed to fetch configuration");
       console.error("Config fetch error:", err);
     } finally {
       setLoading(false);
@@ -208,12 +294,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
     try {
       if (sectionKey === "iris" || sectionKey === "hana") {
         const dianaConfig = { iris: config.iris, hana: config.hana };
-        const response = await fetch("http://127.0.0.1/v1/diana_config", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(dianaConfig),
-        });
-        if (!response.ok) throw new Error("Failed to save IRIS configuration");
+        await api.saveDianaConfig(dianaConfig);
       } else {
         const configToSave =
           sectionKey === "general"
@@ -226,24 +307,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
               )
             : { [sectionKey]: config[sectionKey as keyof Config] };
 
-        console.log("Saving config:", configToSave);
-
-        const response = await fetch("http://127.0.0.1/v1/neon_config", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(configToSave),
-        });
-        if (!response.ok)
-          throw new Error(`Failed to save ${sectionKey} configuration`);
-
-        const updatedConfig = await fetch("http://127.0.0.1/v1/neon_config", {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        });
-        const neonData = await updatedConfig.json();
-
+        const neonData = await api.saveNeonConfig(configToSave);
         setConfig((prev) => ({
           ...prev,
           ...neonData,
@@ -253,10 +317,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
     } catch (err) {
       setSaveErrors((prev) => ({
         ...prev,
-        [sectionKey]:
-          err instanceof Error
-            ? err.message
-            : `Failed to save ${sectionKey} configuration`,
+        [sectionKey]: err instanceof Error ? err.message : `Failed to save ${sectionKey} configuration`,
       }));
     } finally {
       setSavingStates((prev) => ({ ...prev, [sectionKey]: false }));
@@ -274,13 +335,11 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
   ) => {
     setConfig((prev) => {
       if (section === "general") {
-        // For general section, update at root level
         return {
           ...prev,
           [key]: value,
         };
       }
-      // For other sections, update within the section
       const currentSection = prev[section] as ConfigSection;
       return {
         ...prev,
@@ -293,13 +352,11 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
   };
 
   const isSecret = (section: keyof Config | string, key: string): boolean => {
-    // Always check if the key contains sensitive terms
     const isSensitiveKey =
       key.includes("password") ||
       key.includes("secret") ||
       key.includes("api_key");
 
-    // Check if we're in the api_keys section
     const isApiKeysSection = section === "api_keys";
 
     return isSensitiveKey || isApiKeysSection;
@@ -316,7 +373,6 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
       isDark ? "border-orange-400" : "border-orange-600"
     }`;
 
-    // Handle object values
     if (typeof value === "object" && value !== null) {
       if (Array.isArray(value)) {
         return (
@@ -334,7 +390,6 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
           />
         );
       }
-      // For nested objects, display as JSON string
       return (
         <textarea
           value={JSON.stringify(value, null, 2)}
@@ -344,7 +399,6 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
               handleConfigChange(section, key, parsed);
             } catch (err) {
               console.error(err);
-              // If invalid JSON, store as is
               handleConfigChange(section, key, e.target.value);
             }
           }}
@@ -416,6 +470,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
       />
     );
   };
+
   const bgColor = isDark ? "bg-gray-900" : "bg-white";
   const textColor = isDark ? "text-white" : "text-gray-900";
   const borderColor = isDark ? "border-orange-400" : "border-orange-600";
@@ -442,16 +497,16 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
             onClick={() => saveConfigSection(sectionKey)}
             disabled={savingStates[sectionKey]}
             className={`
-    flex items-center gap-2 px-4 py-2 rounded
-    ${
-      isDark
-        ? "bg-orange-600 hover:bg-orange-700"
-        : "bg-orange-500 hover:bg-orange-600"
-    } 
-    text-white transition-colors
-    disabled:opacity-50 disabled:cursor-not-allowed
-    focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50
-  `}
+              flex items-center gap-2 px-4 py-2 rounded
+              ${
+                isDark
+                  ? "bg-orange-600 hover:bg-orange-700"
+                  : "bg-orange-500 hover:bg-orange-600"
+              } 
+              text-white transition-colors
+              disabled:opacity-50 disabled:cursor-not-allowed
+              focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50
+            `}
           >
             <RefreshCw
               className={`h-4 w-4 ${
@@ -531,6 +586,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
       </div>
     );
   };
+
   if (loading && !lastRefresh) {
     return (
       <div
@@ -540,6 +596,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
       </div>
     );
   }
+
   return (
     <div className={`p-4 ${bgColor} ${textColor} min-h-screen relative`}>
       <div className="container mx-auto">
@@ -560,7 +617,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
           </button>
           {lastRefresh && (
             <span className="text-sm">
-              Last refreshed:{lastRefresh.toLocaleString()}
+              Last refreshed: {lastRefresh.toLocaleString()}
             </span>
           )}
         </div>
@@ -569,7 +626,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
             {error}
           </div>
         )}
-
+        
         {renderConfigSection(
           "general",
           GENERAL_SETTINGS.reduce(
@@ -588,21 +645,22 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
         )}
         {renderConfigSection("hana", config.hana || {}, "HANA Configuration")}
         {renderConfigSection("iris", config.iris || {}, "IRIS Configuration")}
+        <BaseUrlConfig isDark={isDark} />
       </div>
       <button
         onClick={scrollToTop}
         className={`
-        fixed bottom-4 right-4 p-2 rounded-full
-        ${showScrollTop ? "opacity-100" : "opacity-0 pointer-events-none"}
-        ${
-          isDark
-            ? "bg-orange-600 hover:bg-orange-700"
-            : "bg-orange-500 hover:bg-orange-600"
-        }
-        text-white transition-all duration-300 ease-in-out
-        focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50
-        shadow-lg hover:shadow-xl
-      `}
+          fixed bottom-4 right-4 p-2 rounded-full
+          ${showScrollTop ? "opacity-100" : "opacity-0 pointer-events-none"}
+          ${
+            isDark
+              ? "bg-orange-600 hover:bg-orange-700"
+              : "bg-orange-500 hover:bg-orange-600"
+          }
+          text-white transition-all duration-300 ease-in-out
+          focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50
+          shadow-lg hover:shadow-xl
+        `}
         aria-label="Scroll to top"
       >
         <ArrowUp className="h-4 w-4" />
@@ -610,4 +668,5 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
     </div>
   );
 };
+
 export default HubManagementUI;
