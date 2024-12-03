@@ -29,6 +29,7 @@ logger.setLevel(logging.DEBUG)
 
 VALID_USERNAME = getenv("NEON_HUB_CONFIG_USERNAME", "neon")
 VALID_PASSWORD = getenv("NEON_HUB_CONFIG_PASSWORD", "neon")
+DIANA_PATH = getenv("DIANA_PATH", "/home/neon/xdg/config/neon/diana.yaml")
 
 security = HTTPBasic()
 
@@ -46,7 +47,6 @@ class NeonHubConfigManager:
         yaml: YAML handler configured for preserving quotes and specific indentation
         default_diana_config: Default configuration for Diana
         neon_config: Instance of Configuration for Neon Hub
-        neon_config_folder: Path to the configuration folder
         diana_config_path: Full path to the Diana configuration file
         diana_config: Current Diana configuration
     """
@@ -68,9 +68,8 @@ class NeonHubConfigManager:
         self.neon_user_config = self._load_neon_user_config()
 
         # Initialize Diana config
-        self.logger.info(f"Loading Diana config in {self.neon_config.xdg_configs[0].path}")
-        self.neon_config_folder = "/".join(self.neon_config.xdg_configs[0].path.split("/")[:-1])
-        self.diana_config_path = f"{self.neon_config_folder}/diana.yaml"
+        self.diana_config_path = DIANA_PATH
+        self.logger.info(f"Loading Diana config in {self.diana_config_path}")
         self.diana_config = self._load_diana_config()
 
     def _load_diana_config(self) -> Dict:
