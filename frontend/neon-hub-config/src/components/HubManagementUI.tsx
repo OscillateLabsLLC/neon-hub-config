@@ -526,7 +526,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
               {TOOLTIPS[key] ? (
                 <TooltipProvider>
                   <Tooltip>
-                    <TooltipTrigger asChild onClick={(e: React.MouseEvent<HTMLLabelElement>) => e.preventDefault()}>
+                  <TooltipTrigger asChild onClick={(e: React.MouseEvent<HTMLButtonElement>) => e.preventDefault()}>
                       <label className="block text-sm font-medium mb-1 cursor-help">
                         {snakeCaseToTitle(key.toLowerCase())}
                         <span className="ml-1 text-gray-400">ⓘ</span>

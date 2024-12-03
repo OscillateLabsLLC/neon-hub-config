@@ -6,7 +6,7 @@ tasks:
     desc: Generate a software bill of materials for the project
     cmds:
       - snyk sbom --format spdx2.3+json > sbom.json
-      - cd frontend
+      - cd frontend/neon-hub-config
       - snyk sbom --format spdx2.3+json > sbom.json
       - cd ..
   build-fe:
@@ -15,10 +15,6 @@ tasks:
     cmds:
       - pnpm install
       - pnpm run build:py
-  build-fe-docker:
-    desc: Build the frontend docker image for testing purposes
-    cmds:
-      - docker build -t neon-hub-config-frontend -f Dockerfile.frontend .
   fe-dev-server:
     dir: frontend/neon-hub-config
     desc: Start the frontend development server
