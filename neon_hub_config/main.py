@@ -304,22 +304,22 @@ async def neon_get_user_config(
     return config
 
 
-# @app.post("/v1/neon_config")
-# async def neon_update_user_config(
-#     config: Dict,
-#     manager: NeonHubConfigManager = Depends(get_config_manager),
-# ):
-#     """
-#     Update the Neon Hub configuration.
+@app.post("/v1/neon_user_config")
+async def neon_update_user_config(
+    config: Dict,
+    manager: NeonHubConfigManager = Depends(get_config_manager),
+):
+    """
+    Update the Neon Hub configuration.
 
-#     Args:
-#         config (Dict): New configuration to apply
+    Args:
+        config (Dict): New configuration to apply
 
-#     Returns:
-#         Dict: Updated configuration
-#     """
-#     logger.info("Updating Neon config")
-#     return manager.update_neon_user_config(config)
+    Returns:
+        Dict: Updated configuration
+    """
+    logger.info("Updating Neon config")
+    return manager.update_neon_config(config)
 
 
 @app.get("/v1/diana_config")
