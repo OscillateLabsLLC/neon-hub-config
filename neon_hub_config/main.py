@@ -12,7 +12,7 @@ import base64
 import logging
 from functools import wraps
 from os import getenv
-from os.path import exists, join, realpath, split
+from os.path import exists, join, realpath, split, expanduser
 from typing import Dict, Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -29,7 +29,7 @@ logger.setLevel(logging.DEBUG)
 
 VALID_USERNAME = getenv("NEON_HUB_CONFIG_USERNAME", "neon")
 VALID_PASSWORD = getenv("NEON_HUB_CONFIG_PASSWORD", "neon")
-DIANA_PATH = getenv("DIANA_PATH", "/home/neon/xdg/config/neon/diana.yaml")
+DIANA_PATH = expanduser(getenv("DIANA_PATH", "/xdg/config/neon/diana.yaml"))
 
 security = HTTPBasic()
 

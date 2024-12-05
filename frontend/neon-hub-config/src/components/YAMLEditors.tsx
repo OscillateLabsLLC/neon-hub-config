@@ -5,12 +5,14 @@ import { RefreshCw, Save } from "lucide-react";
 
 interface ConfigEditorProps {
   title: string;
+  baseUrl: string;
   endpoint: string;
   isDark: boolean;
 }
 
 const ConfigEditor: React.FC<ConfigEditorProps> = ({
   title,
+  baseUrl,
   endpoint,
   isDark,
 }) => {
@@ -30,7 +32,7 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
       // Add cache-busting timestamp to prevent caching
       const timestamp = new Date().getTime();
       const response = await fetch(
-        `http://127.0.0.1${endpoint}?_=${timestamp}`,
+        `${baseUrl}${endpoint}?_=${timestamp}`,
         {
           headers: {
             Accept: "application/json",
@@ -80,7 +82,7 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
     try {
       const jsonData = load(yamlContent);
 
-      const saveResponse = await fetch(`http://127.0.0.1${endpoint}`, {
+      const saveResponse = await fetch(`${baseUrl}${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -249,7 +251,7 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
   );
 };
 
-const YAMLEditors: React.FC<{ isDark: boolean }> = ({ isDark }) => {
+const YAMLEditors: React.FC<{ isDark: boolean, baseUrl: string }> = ({ isDark, baseUrl }) => {
   return (
     <div
       className={`p-4 ${isDark ? "bg-gray-900" : "bg-white"} ${
@@ -283,11 +285,13 @@ const YAMLEditors: React.FC<{ isDark: boolean }> = ({ isDark }) => {
       <div className="container mx-auto">
         <ConfigEditor
           title="Neon Configuration"
+          baseUrl={baseUrl}
           endpoint="/v1/neon_user_config"
           isDark={isDark}
         />
         <ConfigEditor
           title="Diana Configuration"
+          baseUrl={baseUrl}
           endpoint="/v1/diana_config"
           isDark={isDark}
         />
