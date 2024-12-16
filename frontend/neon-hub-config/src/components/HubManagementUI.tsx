@@ -160,6 +160,7 @@ const HubManagementUI: React.FC<HubManagementUIProps> = ({ isDark }) => {
     hana: {},
     iris: {},
     skills: { default_skills: [], extra_dependencies: {} },
+    api_keys: {alpha_vantage: "", open_weather_map: "", wolfram_alpha: ""},
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

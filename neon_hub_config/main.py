@@ -140,8 +140,7 @@ class NeonHubConfigManager:
         Returns:
             Dict: Current Neon user configuration
         """
-        self._load_neon_user_config()
-        return self.neon_user_config or None
+        return self._load_neon_user_config()
 
     def update_neon_config(self, config: Dict) -> Optional[Dict]:
         """

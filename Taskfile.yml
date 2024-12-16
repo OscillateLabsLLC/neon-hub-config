@@ -27,6 +27,7 @@ tasks:
       OVOS_CONFIG_BASE_FOLDER: neon
       OVOS_CONFIG_FILENAME: neon.yaml
       DIANA_PATH: ~/.config/neon/diana.yaml
+      NEON_PATH: ~/.config/neon/neon.yaml
     cmds:
       - poetry run python neon_hub_config/main.py
   build-docker:
