@@ -95,6 +95,8 @@ const ConfigEditor: React.FC<ConfigEditorProps> = ({
         throw new Error(`Failed to save ${title} configuration`);
       }
 
+      await fetchConfig
+
       // Get the updated data from the save response
       const updatedData = await saveResponse.json();
       const updatedYaml = dump(updatedData, {

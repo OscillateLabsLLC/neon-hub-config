@@ -123,6 +123,21 @@ class NeonHubConfigManager:
         except Exception as e:
             self.logger.exception(f"Error saving config: {e}")
 
+    def _save_neon_user_config(self, config: Dict) -> None:
+        """
+        Save Neon user configuration directly to file.
+
+        Args:
+            config (Dict): Configuration to save
+        """
+        try:
+            with open(self.neon_user_config_path, "w+", encoding="utf-8") as file:
+                previous_config = self.yaml.load(file) or {}
+                new_config = {**previous_config, **config}
+                self.yaml.dump(new_config, file)
+        except Exception as e:
+            self.logger.exception(f"Error saving Neon user config: {e}")
+
     def get_neon_config(self) -> Dict:
         """
         Get the current Neon Hub configuration.
@@ -155,6 +170,20 @@ class NeonHubConfigManager:
         self.logger.info("Updating Neon config")
         update_mycroft_config(config)
         self.neon_config.reload()
+        return self.get_neon_user_config()
+
+    def update_neon_user_config(self, config: Dict) -> Optional[Dict]:
+        """
+        Update the Neon Hub configuration.
+
+        Args:
+            config (Dict): New configuration to apply
+
+        Returns:
+            Dict: Updated configuration
+        """
+        self.logger.info("Updating Neon config")
+        self._save_neon_user_config(config)
         return self.get_neon_user_config()
 
     def get_diana_config(self) -> Dict:
@@ -322,7 +351,8 @@ async def neon_update_user_config(
         Dict: Updated configuration
     """
     logger.info("Updating Neon config")
-    return manager.update_neon_config(config)
+    manager.update_neon_user_config(config)
+    return manager.get_neon_user_config()
 
 
 @app.get("/v1/diana_config")
