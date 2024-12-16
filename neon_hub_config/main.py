@@ -7,6 +7,8 @@ It includes basic authentication and configuration management capabilities.
 Environment Variables:
     NEON_HUB_CONFIG_USERNAME: Username for basic auth (default: "neon")
     NEON_HUB_CONFIG_PASSWORD: Password for basic auth (default: "neon")
+    DIANA_PATH: Path to the Diana configuration file (default: "/xdg/config/neon/diana.yaml")
+    NEON_PATH: Path to the Neon configuration file (default: "/xdg/config/mycroft/mycroft.conf")
 """
 import base64
 import logging
@@ -30,6 +32,7 @@ logger.setLevel(logging.DEBUG)
 VALID_USERNAME = getenv("NEON_HUB_CONFIG_USERNAME", "neon")
 VALID_PASSWORD = getenv("NEON_HUB_CONFIG_PASSWORD", "neon")
 DIANA_PATH = expanduser(getenv("DIANA_PATH", "/xdg/config/neon/diana.yaml"))
+NEON_PATH = expanduser(getenv("NEON_PATH", "/xdg/config/neon/neon.yaml"))
 
 security = HTTPBasic()
 
@@ -49,6 +52,7 @@ class NeonHubConfigManager:
         neon_config: Instance of Configuration for Neon Hub
         diana_config_path: Full path to the Diana configuration file
         diana_config: Current Diana configuration
+        neon_config_path: Full path to the Neon user configuration file
     """
 
     def __init__(self):
@@ -64,7 +68,7 @@ class NeonHubConfigManager:
 
         # Initialize Neon configuration
         self.neon_config = Configuration()
-        self.neon_user_config_path = self.neon_config.xdg_configs[0].path
+        self.neon_user_config_path = NEON_PATH or self.neon_config.xdg_configs[0].path
         self.neon_user_config = self._load_neon_user_config()
 
         # Initialize Diana config
@@ -139,7 +143,7 @@ class NeonHubConfigManager:
         self._load_neon_user_config()
         return self.neon_user_config or None
 
-    def update_neon_config(self, config: Dict) -> Dict:
+    def update_neon_config(self, config: Dict) -> Optional[Dict]:
         """
         Update the Neon Hub configuration.
 
@@ -152,7 +156,7 @@ class NeonHubConfigManager:
         self.logger.info("Updating Neon config")
         update_mycroft_config(config)
         self.neon_config.reload()
-        return self.neon_config
+        return self.get_neon_user_config()
 
     def get_diana_config(self) -> Dict:
         """
